@@ -202,6 +202,11 @@ void UpdatePerformanceMonitor(u32 cycles, u32 num_load_stores, u32 num_fp_inst);
 #define riPS0(i) (*(u64*)(&PowerPC::ppcState.ps[i][0]))
 #define riPS1(i) (*(u64*)(&PowerPC::ppcState.ps[i][1]))
 
+#define CR     PowerPC::ppcState.cr
+#define XER    PowerPC::ppcState.spr[SPR_XER]
+#define DSISR  PowerPC::ppcState.spr[SPR_DSISR]
+#define DAR    PowerPC::ppcState.spr[SPR_DAR]
+
 // Routines for debugger UI, cheats, etc. to access emulated memory from the
 // perspective of the CPU.  Not for use by core emulation routines.
 // Use "Host_" prefix.
