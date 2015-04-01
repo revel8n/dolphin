@@ -11,9 +11,9 @@
 #include "Common/CommonTypes.h"
 
 // Enable memory checks in the Debug/DebugFast builds, but NOT in release
-#if defined(_DEBUG) || defined(DEBUGFAST)
+//#if defined(_DEBUG) || defined(DEBUGFAST)
 	#define ENABLE_MEM_CHECK
-#endif
+//#endif
 
 // Global declarations
 class PointerWrap;
