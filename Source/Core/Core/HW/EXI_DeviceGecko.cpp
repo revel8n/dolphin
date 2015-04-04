@@ -203,7 +203,8 @@ void GeckoSockServer::ClientThread()
 	process_commands = false;
 
 	client_count--;
-	client->disconnect();
+	if (IsClientValid())
+		client->disconnect();
 }
 
 template<typename T>
@@ -356,7 +357,7 @@ void GeckoSockServer::CommandThread()
 				u8 result = 0;
 				while (data_packet_count > 0 && send_packets)
 				{
-					std::string data = PowerPC::HostRead(address, packetsize);
+					std::string data = PowerPC::Read(address, packetsize);
 
 					if (!data.empty())
 						std::copy(data.begin(), data.end(), packet.begin());
@@ -380,7 +381,7 @@ void GeckoSockServer::CommandThread()
 				}
 				while (last_packet_size > 0 && send_packets)
 				{
-					std::string data = PowerPC::HostRead(address, last_packet_size);
+					std::string data = PowerPC::Read(address, last_packet_size);
 
 					if (!data.empty())
 						std::copy(data.begin(), data.end(), packet.begin());

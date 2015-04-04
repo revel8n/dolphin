@@ -589,6 +589,18 @@ void Write_F64(const double var, const u32 address)
 	Write_U64(cvt.i, address);
 }
 
+std::string Read(u32 address, size_t size)
+{
+	std::string s;
+	do
+	{
+		u8 res = Read_U8(address);
+		s += res;
+		++address;
+	} while (size > 0 && s.length() < size);
+	return s;
+}
+
 u8 HostRead_U8(const u32 address)
 {
 	u8 var = ReadFromHardware<FLAG_NO_EXCEPTION, u8>(address);

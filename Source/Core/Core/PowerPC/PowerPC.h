@@ -264,6 +264,8 @@ void Write_U64_Swap(const u64 var, const u32 address);
 // Useful helper functions, used by ARM JIT
 void Write_F64(const double var, const u32 address);
 
+std::string Read(u32 em_address, size_t size = 0);
+
 void DMA_LCToMemory(const u32 memAddr, const u32 cacheAddr, const u32 numBlocks);
 void DMA_MemoryToLC(const u32 cacheAddr, const u32 memAddr, const u32 numBlocks);
 void ClearCacheLine(const u32 address); // Zeroes 32 bytes; address should be 32-byte-aligned
