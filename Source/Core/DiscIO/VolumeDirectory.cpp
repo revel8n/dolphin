@@ -459,7 +459,7 @@ void CVolumeDirectory::WriteEntry(const File::FSTEntry& entry, u32& fstOffset, u
 		m_virtualDisk.insert(make_pair(dataOffset, entry.physicalName));
 
 		// 4 byte aligned
-		dataOffset = ROUND_UP(dataOffset + std::max(entry.size, (u64)1), 0x8000ull);
+		dataOffset = ROUND_UP(dataOffset + std::max(entry.size, 1ull), 0x8000ull);
 	}
 }
 
