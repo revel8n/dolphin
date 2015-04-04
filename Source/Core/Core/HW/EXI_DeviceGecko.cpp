@@ -156,7 +156,7 @@ void GeckoSockServer::ClientThread()
 			{
 				did_nothing = false;
 
-				NOTICE_LOG(EXPANSIONINTERFACE, "Received %d byte(s)", got);
+				NOTICE_LOG(EXPANSIONINTERFACE, "Received %ld byte(s)", (u64)got);
 
 				std::lock_guard<std::mutex> lk(transfer_lock);
 
@@ -181,7 +181,7 @@ void GeckoSockServer::ClientThread()
 			{
 				did_nothing = false;
 
-				NOTICE_LOG(EXPANSIONINTERFACE, "Sending %d byte(s): 0x%02X", packet.size(), (u8) packet[0]);
+				NOTICE_LOG(EXPANSIONINTERFACE, "Sending %ld byte(s): 0x%02X", (u64)packet.size(), (u8) packet[0]);
 
 				if (client->send(&packet[0], packet.size()) == sf::Socket::Disconnected)
 				{
