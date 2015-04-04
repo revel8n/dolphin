@@ -82,7 +82,7 @@ WriteHandlingMethod<T>* Nop()
 // to a given set of bits.
 template <typename T>
 class DirectHandlingMethod : public ReadHandlingMethod<T>,
-                             public WriteHandlingMethod<T>
+							 public WriteHandlingMethod<T>
 {
 public:
 	DirectHandlingMethod(T* addr, u32 mask) : addr_(addr), mask_(mask)
@@ -131,7 +131,7 @@ WriteHandlingMethod<T>* DirectWrite(volatile T* addr, u32 mask)
 // that read or write, but reduces the optimization potential.
 template <typename T>
 class ComplexHandlingMethod : public ReadHandlingMethod<T>,
-                              public WriteHandlingMethod<T>
+							  public WriteHandlingMethod<T>
 {
 public:
 	explicit ComplexHandlingMethod(std::function<T(u32)> read_lambda)
@@ -161,7 +161,7 @@ private:
 	{
 		return [](u32) {
 			_dbg_assert_msg_(MEMMAP, 0, "Called the read lambda on a write "
-			                            "complex handler.");
+										"complex handler.");
 			return 0;
 		};
 	}
@@ -170,7 +170,7 @@ private:
 	{
 		return [](u32, T) {
 			_dbg_assert_msg_(MEMMAP, 0, "Called the write lambda on a read "
-			                            "complex handler.");
+										"complex handler.");
 		};
 	}
 
