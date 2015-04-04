@@ -643,6 +643,20 @@ std::string HostGetString(u32 address, size_t size)
 	return s;
 }
 
+std::string HostRead(u32 address, size_t size)
+{
+	std::string s;
+	do
+	{
+		if (!HostIsRAMAddress(address))
+			break;
+		u8 res = HostRead_U8(address);
+		s += res;
+		++address;
+	} while (size > 0 && s.length() < size);
+	return s;
+}
+
 bool IsOptimizableRAMAddress(const u32 address)
 {
 #ifdef ENABLE_MEM_CHECK

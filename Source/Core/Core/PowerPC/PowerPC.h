@@ -225,6 +225,7 @@ void HostWrite_U64(const u64 var, const u32 address);
 bool HostIsRAMAddress(const u32 address);
 
 std::string HostGetString(u32 em_address, size_t size = 0);
+std::string HostRead(u32 em_address, size_t size = 0);
 
 // Routines for the CPU core to access memory.
 

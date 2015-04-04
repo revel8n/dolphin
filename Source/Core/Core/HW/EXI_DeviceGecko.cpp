@@ -147,7 +147,8 @@ void GeckoSockServer::ClientThread()
 			{
 				//client_running = false;
 				process_commands = false;
-				commandThread.join();
+				if (commandThread.joinable())
+					commandThread.join();
 				client->disconnect();
 				continue;
 			}
@@ -187,7 +188,8 @@ void GeckoSockServer::ClientThread()
 				{
 					//client_running = false;
 					process_commands = false;
-					commandThread.join();
+					if (commandThread.joinable())
+						commandThread.join();
 					client->disconnect();
 					continue;
 				}
@@ -354,7 +356,11 @@ void GeckoSockServer::CommandThread()
 				u8 result = 0;
 				while (data_packet_count > 0 && send_packets)
 				{
-					Memory::CopyFromEmu(&packet.front(), address, packetsize);
+					std::string data = PowerPC::HostRead(address, packetsize);
+
+					if (!data.empty())
+						std::copy(data.begin(), data.end(), packet.begin());
+
 					write_data(packet);
 
 					read_data(result);
@@ -374,7 +380,11 @@ void GeckoSockServer::CommandThread()
 				}
 				while (last_packet_size > 0 && send_packets)
 				{
-					Memory::CopyFromEmu(&packet.front(), address, packetsize);
+					std::string data = PowerPC::HostRead(address, last_packet_size);
+
+					if (!data.empty())
+						std::copy(data.begin(), data.end(), packet.begin());
+
 					write_data(&packet.front(), last_packet_size);
 
 					read_data(result);
