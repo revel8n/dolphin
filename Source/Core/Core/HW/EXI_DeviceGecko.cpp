@@ -265,6 +265,38 @@ bool GeckoSockServer::write_data(const u8* data, u64 size)
 	return false;
 }
 
+void GeckoSockServer::SetMemCheck(u32 startAddress, u32 endAddress, u32 type)
+{
+	TMemCheck MemCheck;
+
+	MemCheck.StartAddress = startAddress;
+	MemCheck.EndAddress = endAddress;
+	MemCheck.bRange = startAddress != endAddress;
+	MemCheck.OnRead = false;
+	MemCheck.OnWrite = false;
+	MemCheck.Log = true;
+	MemCheck.Break = true;
+
+	switch (type)
+	{
+	case BPRead:
+		MemCheck.OnRead = true;
+		break;
+	case BPWrite:
+		MemCheck.OnWrite = true;
+		break;
+	case BPReadWrite:
+		MemCheck.OnRead = true;
+		MemCheck.OnWrite = true;
+		break;
+	default:
+		return;
+		break;
+	}
+
+	PowerPC::memchecks.Add(MemCheck);
+}
+
 void GeckoSockServer::CommandThread()
 {
 	process_commands = true;
@@ -294,6 +326,8 @@ void GeckoSockServer::CommandThread()
 
 				address = Common::swap32(address);
 				value = Common::swap32(value);
+
+				PowerPC::Write_U8(value, address);
 			}
 				break;
 
@@ -309,6 +343,8 @@ void GeckoSockServer::CommandThread()
 
 				address = Common::swap32(address);
 				value = Common::swap32(value);
+
+				PowerPC::Write_U16(value, address);
 			}
 				break;
 
@@ -324,6 +360,8 @@ void GeckoSockServer::CommandThread()
 
 				address = Common::swap32(address);
 				value = Common::swap32(value);
+
+				PowerPC::Write_U32(value, address);
 			}
 				break;
 
@@ -428,6 +466,10 @@ void GeckoSockServer::CommandThread()
 				read_data(address);
 
 				address = Common::swap32(address);
+
+				u32 type = address & 7;
+				address &= ~7;
+				SetMemCheck(address, address + 8, type);
 			}
 				break;
 
@@ -440,6 +482,8 @@ void GeckoSockServer::CommandThread()
 				read_data(address);
 
 				address = Common::swap32(address);
+
+				PowerPC::breakpoints.Add(address & ~3);
 			}
 				break;
 
@@ -557,16 +601,24 @@ void GeckoSockServer::CommandThread()
 
 				bool read_packets = true;
 
+				u32 c_address = l_address;
+
 				u8 result = 0;
 				while (data_packet_count > 0 && read_packets)
 				{
 					read_data(packet);
+
+					for (int i = 0; i < packet.size(); ++i)
+					{
+						PowerPC::Write_U8(packet[i], c_address + i);
+					}
 
 					read_data(result);
 					switch (result)
 					{
 					case GCACK:
 						--data_packet_count;
+						c_address += uplpacketsize;
 						break;
 					case GCRETRY:
 						break;
@@ -580,12 +632,18 @@ void GeckoSockServer::CommandThread()
 				{
 					read_data(&packet.front(), last_packet_size);
 
+					for (int i = 0; i < packet.size(); ++i)
+					{
+						PowerPC::Write_U8(packet[i], c_address + i);
+					}
+
 					read_data(result);
 					switch (result)
 					{
 					case GCRETRY:
 						break;
 					case GCACK:
+						c_address += last_packet_size;
 					case GCFAIL:
 					default:
 						read_packets = false;
@@ -665,6 +723,9 @@ void GeckoSockServer::CommandThread()
 				h_address = Common::swap32(h_address);
 
 				NOTICE_LOG(EXPANSIONINTERFACE, "0x%08X -> 0x%08X", l_address, h_address);
+
+				u32 type = l_address & 7;
+				SetMemCheck(h_address, h_address, type);
 			}
 				break;
 
