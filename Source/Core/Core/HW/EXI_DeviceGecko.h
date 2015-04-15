@@ -46,6 +46,7 @@ public:
 protected:
 
 	bool IsClientValid() const;
+	static void SetMemCheck(u32 startAddress, u32 endAddress, u32 type);
 
 private:
 	enum class WiiStatus : u8
