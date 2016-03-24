@@ -1,10 +1,21 @@
-// Copyright 2013 Dolphin Emulator Project
-// Licensed under GPLv2
+// Copyright 2011 Dolphin Emulator Project
+// Licensed under GPLv2+
 // Refer to the license.txt file included.
 
-#include "Common/StdMakeUnique.h"
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <thread>
+#include <vector>
+
+#include "Common/ChunkFile.h"
+#include "Common/CommonFuncs.h"
+#include "Common/CommonTypes.h"
+#include "Common/StringUtil.h"
+#include "Common/Thread.h"
+#include "Common/Logging/Log.h"
 #include "Core/Core.h"
-#include "Core/HW/EXI_Device.h"
 #include "Core/HW/EXI_DeviceGecko.h"
 #include "Core/HW/CPU.h"
 #include "Core/PowerPC/PowerPC.h"
@@ -80,7 +91,8 @@ void GeckoSockServer::GeckoConnectionWaiter()
 
 			new_client = std::make_unique<sf::TcpSocket>();
 		}
-		SLEEP(1);
+
+		Common::SleepCurrentThread(1);
 	}
 }
 
@@ -768,13 +780,13 @@ void CEXIGecko::ImmReadWrite(u32 &_uData, u32 _uSize)
 	switch (_uData >> 28)
 	{
 	case CMD_LED_OFF:
-		Core::DisplayMessage(StringFromFormat(
-			"USBGecko: No LEDs for you!"),
+		Core::DisplayMessage(
+			"USBGecko: No LEDs for you!",
 			3000);
 		break;
 	case CMD_LED_ON:
-		Core::DisplayMessage(StringFromFormat(
-			"USBGecko: A piercing blue light is now shining in your general direction"),
+		Core::DisplayMessage(
+			"USBGecko: A piercing blue light is now shining in your general direction",
 			3000);
 		break;
 

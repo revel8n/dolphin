@@ -50,7 +50,7 @@ inline bool IsMMIOAddress(u32 address)
 	if(SConfig::GetInstance().bWii)
 	{
 		return ((address & 0xFFFF0000) == 0x0D000000) || // Wii MMIOs
-			   ((address & 0xFFFF0000) == 0x0D800000);   // Mirror of Wii MMIOs
+		       ((address & 0xFFFF0000) == 0x0D800000);   // Mirror of Wii MMIOs
 	}
 
 	return false;
@@ -63,9 +63,9 @@ inline bool IsMMIOAddress(u32 address)
 inline u32 UniqueID(u32 address)
 {
 	_dbg_assert_msg_(MEMMAP, ((address & 0xFFFF0000) == 0x0C000000) ||
-							 ((address & 0xFFFF0000) == 0x0D000000) ||
-							 ((address & 0xFFFF0000) == 0x0D800000),
-					 "Trying to get the ID of a non-existing MMIO address.");
+	                         ((address & 0xFFFF0000) == 0x0D000000) ||
+	                         ((address & 0xFFFF0000) == 0x0D800000),
+	                 "Trying to get the ID of a non-existing MMIO address.");
 
 	return (((address >> 24) & 1) << 16) | (address & 0xFFFF);
 }
@@ -185,8 +185,8 @@ private:
 		static_assert(std::is_same<Unit, u8>::value || std::is_same<Unit, u16>::value || std::is_same<Unit, u32>::value, "Invalid unit used");
 		using ArrayType = typename HandlerArray<Unit>::Read;
 		ArrayType& handler = *(std::is_same<Unit,u8>::value ? (ArrayType*)&m_read_handlers8
-															: std::is_same<Unit,u16>::value ? (ArrayType*)&m_read_handlers16
-																							: (ArrayType*)&m_read_handlers32);
+		                                                    : std::is_same<Unit,u16>::value ? (ArrayType*)&m_read_handlers16
+		                                                                                    : (ArrayType*)&m_read_handlers32);
 		return handler[index];
 	}
 
@@ -196,8 +196,8 @@ private:
 		static_assert(std::is_same<Unit, u8>::value || std::is_same<Unit, u16>::value || std::is_same<Unit, u32>::value, "Invalid unit used");
 		using ArrayType = typename HandlerArray<Unit>::Write;
 		ArrayType& handler = *(std::is_same<Unit,u8>::value ? (ArrayType*)&m_write_handlers8
-															: std::is_same<Unit,u16>::value ? (ArrayType*)&m_write_handlers16
-																							: (ArrayType*)&m_write_handlers32);
+		                                                    : std::is_same<Unit,u16>::value ? (ArrayType*)&m_write_handlers16
+		                                                                                    : (ArrayType*)&m_write_handlers32);
 		return handler[index];
 	}
 };
@@ -207,14 +207,14 @@ private:
 template<>
 inline u64 Mapping::Read<u64>(u32 addr)
 {
-	_dbg_assert_(MEMMAP, 0);
-	return 0;
+    _dbg_assert_(MEMMAP, 0);
+    return 0;
 }
 
 template<>
 inline void Mapping::Write(u32 addr, u64 val)
 {
-	_dbg_assert_(MEMMAP, 0);
+    _dbg_assert_(MEMMAP, 0);
 }
 
 }
