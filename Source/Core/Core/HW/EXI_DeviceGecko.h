@@ -31,6 +31,20 @@ public:
 	std::deque<u8> send_fifo;
 	std::deque<u8> recv_fifo;
 
+private:
+	static int        client_count;
+	std::atomic<bool> client_running;
+
+	// Only ever one server thread
+	static void GeckoConnectionWaiter();
+
+	static u16                       server_port;
+	static std::atomic<bool>         server_running;
+	static std::thread               connectionThread;
+	static std::mutex                connection_lock;
+	static std::queue<std::unique_ptr<sf::TcpSocket>> waiting_socks;
+
+public:
 	template<typename T>
 	bool read_data(T& data);
 	template<typename T>
@@ -95,18 +109,7 @@ private:
 	static const u8 BPWrite = 0x06;
 	static const u8 BPReadWrite = 0x07;
 
-	static int    client_count;
-	volatile bool client_running;
-	volatile bool process_commands;
-
-	// Only ever one server thread
-	static void GeckoConnectionWaiter();
-
-	static u16                       server_port;
-	static volatile bool             server_running;
-	static std::thread               connectionThread;
-	static std::mutex                connection_lock;
-	static std::queue<std::unique_ptr<sf::TcpSocket>> waiting_socks;
+	std::atomic<bool> process_commands;
 };
 
 class CEXIGecko

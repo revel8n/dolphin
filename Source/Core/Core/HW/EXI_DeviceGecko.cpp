@@ -14,7 +14,7 @@
 u16                       GeckoSockServer::server_port;
 int                       GeckoSockServer::client_count;
 std::thread               GeckoSockServer::connectionThread;
-volatile bool             GeckoSockServer::server_running;
+std::atomic<bool>         GeckoSockServer::server_running;
 std::mutex                GeckoSockServer::connection_lock;
 std::queue<std::unique_ptr<sf::TcpSocket>> GeckoSockServer::waiting_socks;
 
