@@ -457,7 +457,7 @@ void GeckoSockServer::CommandThread()
 			{
 				NOTICE_LOG(EXPANSIONINTERFACE, "cmd_pause");
 
-				CCPU::EnableStepping(true);
+				CPU::EnableStepping(true);
 			}
 				break;
 
@@ -465,7 +465,7 @@ void GeckoSockServer::CommandThread()
 			{
 				NOTICE_LOG(EXPANSIONINTERFACE, "cmd_unfreeze");
 
-				CCPU::EnableStepping(false);
+				CPU::EnableStepping(false);
 			}
 				break;
 
