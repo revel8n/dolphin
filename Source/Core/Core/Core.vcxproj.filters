@@ -732,6 +732,9 @@
     <ClCompile Include="PowerPC\TCPGecko.cpp">
       <Filter>PowerPC</Filter>
     </ClCompile>
+    <ClCompile Include="PowerPC\GDBThread.cpp">
+      <Filter>PowerPC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
@@ -1251,6 +1254,9 @@
       <Filter>PowerPC\Jit64Common</Filter>
     </ClInclude>
     <ClInclude Include="PowerPC\TCPGecko.h">
+      <Filter>PowerPC</Filter>
+    </ClInclude>
+    <ClInclude Include="PowerPC\GDBThread.h">
       <Filter>PowerPC</Filter>
     </ClInclude>
   </ItemGroup>
