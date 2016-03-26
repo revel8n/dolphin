@@ -714,7 +714,7 @@ void TCPGecko::CommandThread()
                     break;
 
                 case PowerPC::CPU_STEPPING:
-                    if (PowerPC::breakpoints.IsAddressBreakPoint(PC))
+                    if (PowerPC::breakpoints.GetBreakpointTriggered())
                         write_data(WiiStatus::Breakpoint);
                     else
                         write_data(WiiStatus::Paused);

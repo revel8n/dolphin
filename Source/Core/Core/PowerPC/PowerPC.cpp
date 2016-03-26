@@ -521,6 +521,7 @@ void CheckBreakPoints()
 {
 	if (PowerPC::breakpoints.IsAddressBreakPoint(PC))
 	{
+        PowerPC::breakpoints.SetBreakpointTriggered(true);
 		PowerPC::Pause();
 		if (PowerPC::breakpoints.IsTempBreakPoint(PC))
 			PowerPC::breakpoints.Remove(PC);
