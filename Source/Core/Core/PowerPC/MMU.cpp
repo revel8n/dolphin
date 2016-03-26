@@ -603,6 +603,21 @@ std::string Read(u32 address, size_t size)
 	return s;
 }
 
+void Write(u32 address, u8* data, size_t size)
+{
+    while (size > 0)
+    {
+        --size;
+
+        if (!HostIsRAMAddress(address))
+            break;
+
+        Write_U8(*data, address);
+        ++data;
+        ++address;
+    }
+}
+
 u8 HostRead_U8(const u32 address)
 {
 	u8 var = ReadFromHardware<FLAG_NO_EXCEPTION, u8>(address);
@@ -669,6 +684,21 @@ std::string HostRead(u32 address, size_t size)
 		++address;
 	} while (size > 0 && s.length() < size);
 	return s;
+}
+
+void HostWrite(u32 address, u8* data, size_t size)
+{
+    while (size > 0)
+    {
+        --size;
+
+        if (!HostIsRAMAddress(address))
+            break;
+
+        HostWrite_U8(*data, address);
+        ++data;
+        ++address;
+    }
 }
 
 bool IsOptimizableRAMAddress(const u32 address)

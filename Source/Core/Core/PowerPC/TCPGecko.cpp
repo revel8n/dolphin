@@ -1,4 +1,4 @@
-// Copyright 2011 Dolphin Emulator Project
+// Copyright 2016 Dolphin Emulator Project
 // Licensed under GPLv2+
 // Refer to the license.txt file included.
 
@@ -352,7 +352,7 @@ void TCPGecko::CommandThread()
                 address = Common::swap32(address);
                 value = Common::swap32(value);
 
-                PowerPC::Write_U8(value, address);
+                PowerPC::HostWrite_U8(value, address);
             }
             break;
 
@@ -369,7 +369,7 @@ void TCPGecko::CommandThread()
                 address = Common::swap32(address);
                 value = Common::swap32(value);
 
-                PowerPC::Write_U16(value, address);
+                PowerPC::HostWrite_U16(value, address);
             }
             break;
 
@@ -386,7 +386,7 @@ void TCPGecko::CommandThread()
                 address = Common::swap32(address);
                 value = Common::swap32(value);
 
-                PowerPC::Write_U32(value, address);
+                PowerPC::HostWrite_U32(value, address);
             }
             break;
 
@@ -420,7 +420,7 @@ void TCPGecko::CommandThread()
                 u8 result = 0;
                 while (data_packet_count > 0 && send_packets)
                 {
-                    std::string data = PowerPC::Read(address, packetsize);
+                    std::string data = PowerPC::HostRead(address, packetsize);
 
                     if (!data.empty())
                         std::copy(data.begin(), data.end(), packet.begin());
@@ -444,7 +444,7 @@ void TCPGecko::CommandThread()
                 }
                 while (last_packet_size > 0 && send_packets)
                 {
-                    std::string data = PowerPC::Read(address, last_packet_size);
+                    std::string data = PowerPC::HostRead(address, last_packet_size);
 
                     if (!data.empty())
                         std::copy(data.begin(), data.end(), packet.begin());
@@ -635,7 +635,7 @@ void TCPGecko::CommandThread()
 
                     for (int i = 0; i < packet.size(); ++i)
                     {
-                        PowerPC::Write_U8(packet[i], c_address + i);
+                        PowerPC::HostWrite_U8(packet[i], c_address + i);
                     }
 
                     read_data(result);
@@ -659,7 +659,7 @@ void TCPGecko::CommandThread()
 
                     for (int i = 0; i < packet.size(); ++i)
                     {
-                        PowerPC::Write_U8(packet[i], c_address + i);
+                        PowerPC::HostWrite_U8(packet[i], c_address + i);
                     }
 
                     read_data(result);
