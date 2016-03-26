@@ -50,6 +50,7 @@ LogManager::LogManager()
 	m_Log[LogTypes::EXPANSIONINTERFACE] = new LogContainer("EXI",             "Expansion Interface");
 	m_Log[LogTypes::FILEMON]            = new LogContainer("FileMon",         "File Monitor");
 	m_Log[LogTypes::GDB_STUB]           = new LogContainer("GDB_STUB",        "GDB Stub");
+	m_Log[LogTypes::GDB_THREAD]         = new LogContainer("GDB_THREAD",      "GDB Thread");
 	m_Log[LogTypes::GPFIFO]             = new LogContainer("GP",              "GPFifo");
 	m_Log[LogTypes::HOST_GPU]           = new LogContainer("Host GPU",        "Host GPU");
 	m_Log[LogTypes::MASTER_LOG]         = new LogContainer("*",               "Master Log");

@@ -50,11 +50,10 @@ struct SConfig : NonCopyable
 
 	// Settings
 	bool bEnableDebugging;
-	#ifdef USE_GDBSTUB
 	int iGDBPort;
+	int iTCPGeckoPort;
 	#ifndef _WIN32
 	std::string gdb_socket;
-	#endif
 	#endif
 	bool bAutomaticStart;
 	bool bBootToPause;

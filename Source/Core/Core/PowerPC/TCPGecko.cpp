@@ -15,19 +15,12 @@
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 #include "Common/Logging/Log.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/PowerPC/TCPGecko.h"
 #include "Core/HW/CPU.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
-#include "Core/Core.h"
-
-u16                       TCPGecko::server_port;
-int                       TCPGecko::client_count;
-std::thread               TCPGecko::connectionThread;
-std::atomic<bool>         TCPGecko::server_running;
-std::mutex                TCPGecko::connection_lock;
-std::queue<std::unique_ptr<sf::TcpSocket>> TCPGecko::waiting_socks;
 
 TCPGecko::TCPGecko()
     : client_running(false)
@@ -39,12 +32,15 @@ TCPGecko::~TCPGecko()
     Terminate();
 }
 
-bool TCPGecko::Initialize(u16 port)
+bool TCPGecko::Initialize()
 {
-    server_port = port;
+    const SConfig& _CoreParameter = SConfig::GetInstance();
+
+    if (_CoreParameter.iTCPGeckoPort <= 0)
+        return false;
 
     if (!connectionThread.joinable())
-        connectionThread = std::thread(GeckoConnectionWaiter);
+        connectionThread = std::thread(std::mem_fun(&TCPGecko::GeckoConnectionWaiter), this);
 
     clientThread = std::thread(std::mem_fun(&TCPGecko::ClientThread), this);
 
@@ -76,8 +72,10 @@ void TCPGecko::GeckoConnectionWaiter()
 {
     Common::SetCurrentThreadName("TCPGecko Connection Waiter");
 
+    const SConfig& _CoreParameter = SConfig::GetInstance();
+
     sf::TcpListener server;
-    server_port = 0xd6ec; // "dolphin gecko"
+    u16 server_port = _CoreParameter.iTCPGeckoPort;
     for (int bind_tries = 0; bind_tries <= 10 && !server_running; bind_tries++)
     {
         server_running = server.listen(server_port) == sf::Socket::Done;

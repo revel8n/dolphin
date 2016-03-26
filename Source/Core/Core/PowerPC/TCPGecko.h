@@ -21,7 +21,7 @@ public:
     TCPGecko();
     ~TCPGecko();
 
-    bool Initialize(u16 port);
+    bool Initialize();
     void Terminate();
 
 private:
@@ -31,7 +31,7 @@ private:
     void CommandThread();
 
     // Only ever one server thread
-    static void GeckoConnectionWaiter();
+    void GeckoConnectionWaiter();
 
     bool IsClientValid() const;
     static void SetMemCheck(u32 startAddress, u32 endAddress, u32 type);
@@ -41,21 +41,21 @@ private:
     std::unique_ptr<sf::TcpSocket> client;
     std::thread clientThread;
     std::thread commandThread;
-    std::mutex transfer_lock;
+    std::mutex  transfer_lock;
 
     std::deque<u8> send_fifo;
     std::deque<u8> recv_fifo;
 
-    static int        client_count;
+    int               client_count;
     std::atomic<bool> client_running;
 
     std::atomic<bool> process_commands;
 
-    static u16                       server_port;
-    static std::atomic<bool>         server_running;
-    static std::thread               connectionThread;
-    static std::mutex                connection_lock;
-    static std::queue<std::unique_ptr<sf::TcpSocket>> waiting_socks;
+    std::atomic<bool> server_running;
+    std::thread       connectionThread;
+    std::mutex        connection_lock;
+
+    std::queue<std::unique_ptr<sf::TcpSocket>> waiting_socks;
 
     template<typename T>
     bool read_data(T& data);

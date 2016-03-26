@@ -60,6 +60,8 @@
 #ifdef USE_GDBSTUB
 #include "Core/PowerPC/GDBStub.h"
 #endif
+#include "Core/PowerPC/GDBThread.h"
+#include "Core/PowerPC/TCPGecko.h"
 
 #include "DiscIO/FileMonitor.h"
 #include "InputCommon/GCAdapter.h"
@@ -243,7 +245,7 @@ bool Init()
 	{
 		IniFile gameIni = _CoreParameter.LoadGameIni();
 		gameIni.GetOrCreateSection("Wii")->Get("Widescreen", &g_aspect_wide,
-		     !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
+			 !!SConfig::GetInstance().m_SYSCONF->GetData<u8>("IPL.AR"));
 	}
 
 	s_window_handle = Host_GetRenderHandle();
@@ -343,6 +345,12 @@ static void CpuThread()
 	s_is_started = true;
 
 
+	GDBThread gdb_thread;
+	TCPGecko tcp_gecko;
+
+	gdb_thread.Initialize();
+	tcp_gecko.Initialize();
+
 	#ifdef USE_GDBSTUB
 	#ifndef _WIN32
 	if (!_CoreParameter.gdb_socket.empty())
@@ -368,6 +376,9 @@ static void CpuThread()
 	CPU::Run();
 
 	s_is_started = false;
+
+	tcp_gecko.Terminate();
+	gdb_thread.Terminate();
 
 	if (!_CoreParameter.bCPUThread)
 		g_video_backend->Video_Cleanup();
@@ -506,7 +517,7 @@ void EmuThread()
 
 	// Setup our core, but can't use dynarec if we are compare server
 	if (core_parameter.iCPUCore != PowerPC::CORE_INTERPRETER
-	    && (!core_parameter.bRunCompareServer || core_parameter.bRunCompareClient))
+		&& (!core_parameter.bRunCompareServer || core_parameter.bRunCompareClient))
 	{
 		PowerPC::SetMode(PowerPC::MODE_JIT);
 	}
@@ -715,7 +726,7 @@ void SaveScreenShot(const std::string& name)
 	Renderer::SetScreenshot(filePath);
 
 	if (!bPaused)
-	 	SetState(CORE_RUN);
+		SetState(CORE_RUN);
 }
 
 void RequestRefreshInfo()

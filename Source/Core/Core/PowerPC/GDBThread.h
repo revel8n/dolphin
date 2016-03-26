@@ -35,6 +35,9 @@ public:
     ~gdb_stub();
 
     void gdb_init(u32 port);
+#ifndef _WIN32
+    void gdb_init_local(const char *socket);
+#endif
     void gdb_deinit();
 
     int gdb_data_available();
@@ -45,6 +48,7 @@ public:
 
 protected:
     bool connected;
+    int tmpsock = -1;
     int sock = -1;
     struct sockaddr_in saddr_server, saddr_client;
 
@@ -56,6 +60,10 @@ protected:
     MemCheckCondition signal_cond;
 
 protected:
+    void gdb_init_generic(int domain,
+        const sockaddr *server_addr, socklen_t server_addrlen,
+        sockaddr *client_addr, socklen_t *client_addrlen);
+
     void gdb_read_command();
     void gdb_parse_command();
 
@@ -109,7 +117,7 @@ public:
     GDBThread();
     ~GDBThread();
 
-    bool Initialize(u32 port);
+    bool Initialize();
     void Terminate();
 
 protected:
@@ -122,7 +130,6 @@ protected:
 
 protected:
     bool is_running;
-    u32 server_port;
 
     gdb_stub gdb_interface;
 

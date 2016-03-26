@@ -10,11 +10,11 @@
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 #include "Common/Logging/Log.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/CPU.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
-#include "Core/Core.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -34,14 +34,14 @@
 
 #define fail(msg)   \
 {                   \
-    DEBUG_LOG(GDB_STUB, msg); \
+    DEBUG_LOG(GDB_THREAD, msg); \
     gdb_deinit();   \
     return;         \
 }
 
 #define failr(msg)  \
 {                   \
-    DEBUG_LOG(GDB_STUB, msg); \
+    DEBUG_LOG(GDB_THREAD, msg); \
     gdb_deinit();   \
     return 0;       \
 }
@@ -77,8 +77,7 @@ enum gdb_bp_type
 // --------------------------------------------------------------------------------------
 //  GDBThread Implementations
 // --------------------------------------------------------------------------------------
-GDBThread::GDBThread() :
-server_port(0)
+GDBThread::GDBThread() 
 {
 }
 
@@ -87,11 +86,14 @@ GDBThread::~GDBThread()
     Terminate();
 }
 
-bool GDBThread::Initialize(u32 port)
+bool GDBThread::Initialize()
 {
-    NOTICE_LOG(GDB_STUB, "GDB thread: Initialize");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: Initialize");
 
-    server_port = port;
+    const SConfig& _CoreParameter = SConfig::GetInstance();
+
+    if (_CoreParameter.iGDBPort <= 0)
+        return false;
 
     server_thread = std::thread(std::mem_fun(&GDBThread::ExecuteTaskInThread), this);
 
@@ -100,7 +102,7 @@ bool GDBThread::Initialize(u32 port)
 
 void GDBThread::Terminate()
 {
-    NOTICE_LOG(GDB_STUB, "GDB thread: Terminate");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: Terminate");
 
     OnStop();
 
@@ -110,14 +112,14 @@ void GDBThread::Terminate()
 
 void GDBThread::OnStart()
 {
-    NOTICE_LOG(GDB_STUB, "GDB thread: On Start");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: On Start");
 
     Common::SetCurrentThreadName("GDBThread");
 }
 
 void GDBThread::OnStop()
 {
-    NOTICE_LOG(GDB_STUB, "GDB thread: On Stop");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: On Stop");
 
     is_running = false;
 
@@ -130,7 +132,7 @@ void GDBThread::OnPause()
     u64 addr;
     MemCheckCondition cond;
 
-    NOTICE_LOG(GDB_STUB, "GDB thread: On Pause");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: On Pause");
 
     if (PowerPC::CPU_POWERDOWN == PowerPC::GetState())
     {
@@ -148,7 +150,7 @@ void GDBThread::OnPause()
 }
 void GDBThread::OnResume()
 {
-    NOTICE_LOG(GDB_STUB, "GDB thread: On Resume");
+    NOTICE_LOG(GDB_THREAD, "GDB thread: On Resume");
 
     if (PowerPC::CPU_POWERDOWN == PowerPC::GetState())
     {
@@ -165,15 +167,28 @@ void GDBThread::ExecuteTaskInThread()
 {
     OnStart();
 
-    NOTICE_LOG(GDB_STUB, "Starting GDB stub thread.");
+    NOTICE_LOG(GDB_THREAD, "Starting GDB stub thread.");
 
     is_running = true;
+
+    const SConfig& _CoreParameter = SConfig::GetInstance();
 
     while (is_running)
     {
         if (PowerPC::CPU_POWERDOWN != PowerPC::GetState())
         {
-            gdb_interface.gdb_init(server_port);
+#ifndef _WIN32
+            if (!_CoreParameter.gdb_socket.empty())
+            {
+                gdb_interface.gdb_init_local(_CoreParameter.gdb_socket.data());
+            }
+            else
+#endif
+            if (_CoreParameter.iGDBPort > 0)
+            {
+                gdb_interface.gdb_init((u32)_CoreParameter.iGDBPort);
+                // break at next instruction (the first instruction)
+            }
 
             // abuse abort signal for attach
             gdb_interface.gdb_signal(SIGABRT);
@@ -216,7 +231,7 @@ void GDBThread::ExecuteTaskInThread()
         Common::YieldCPU();
     }
 
-    NOTICE_LOG(GDB_STUB, "Terminating GDB stub thread.");
+    NOTICE_LOG(GDB_THREAD, "Terminating GDB stub thread.");
 }
 
 
@@ -230,7 +245,7 @@ static u8 hex2char(u8 hex)
     else if (hex >= 'A' && hex <= 'F')
         return hex - 'A' + 0xa;
 
-    DEBUG_LOG(GDB_STUB, "Invalid nibble: %c (%02x)\n", hex, hex);
+    DEBUG_LOG(GDB_THREAD, "Invalid nibble: %c (%02x)\n", hex, hex);
     return 0;
 }
 
@@ -356,82 +371,96 @@ gdb_stub::~gdb_stub()
     gdb_deinit();
 }
 
+#ifndef _WIN32
+void gdb_stub::gdb_init_local(const char *socket)
+{
+    unlink(socket);
+
+    sockaddr_un addr = {};
+    addr.sun_family = AF_UNIX;
+    strcpy(addr.sun_path, socket);
+
+    gdb_init_generic(PF_LOCAL, (const sockaddr *)&addr, sizeof(addr),
+        NULL, NULL);
+}
+#endif
+
 void gdb_stub::gdb_init(u32 port)
 {
-    int tmpsock;
-    socklen_t len = sizeof saddr_client;
+    sockaddr_in saddr_server = {};
+    sockaddr_in saddr_client;
+
+    saddr_server.sin_family = AF_INET;
+    saddr_server.sin_port = htons(port);
+    saddr_server.sin_addr.s_addr = INADDR_ANY;
+
+    socklen_t client_addrlen = sizeof(saddr_client);
+
+    gdb_init_generic(PF_INET,
+        (const sockaddr *)&saddr_server, sizeof(saddr_server),
+        (sockaddr *)&saddr_client, &client_addrlen);
+
+    saddr_client.sin_addr.s_addr = ntohl(saddr_client.sin_addr.s_addr);
+    /*if (((saddr_client.sin_addr.s_addr >> 24) & 0xff) != 127 ||
+    *      ((saddr_client.sin_addr.s_addr >> 16) & 0xff) !=   0 ||
+    *      ((saddr_client.sin_addr.s_addr >>  8) & 0xff) !=   0 ||
+    *      ((saddr_client.sin_addr.s_addr >>  0) & 0xff) !=   1)
+    *      ERROR_LOG(GDB_THREAD, "gdb: incoming connection not from localhost");
+    */
+}
+
+void gdb_stub::gdb_init_generic(int domain,
+    const sockaddr *server_addr, socklen_t server_addrlen,
+    sockaddr *client_addr, socklen_t *client_addrlen)
+{
     int on;
 #ifdef _WIN32
     WSADATA init_data;
     WSAStartup(MAKEWORD(2, 2), &init_data);
 #endif
 
-    tmpsock = (int)socket(AF_INET, SOCK_STREAM, 0);
+    tmpsock = (int)socket(domain, SOCK_STREAM, 0);
     if (tmpsock == -1)
-        fail("Failed to create gdb socket");
+        ERROR_LOG(GDB_THREAD, "Failed to create gdb socket");
 
     on = 1;
     if (setsockopt(tmpsock, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof on) < 0)
-        fail("Failed to setsockopt");
+        ERROR_LOG(GDB_THREAD, "Failed to setsockopt");
 
-    memset(&saddr_server, 0, sizeof saddr_server);
-    saddr_server.sin_family = AF_INET;
-    saddr_server.sin_port = htons(port);
-    saddr_server.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(tmpsock, (struct sockaddr *)&saddr_server, sizeof saddr_server) < 0)
-        fail("Failed to bind gdb socket");
+    if (bind(tmpsock, server_addr, server_addrlen) < 0)
+        ERROR_LOG(GDB_THREAD, "Failed to bind gdb socket");
 
     if (listen(tmpsock, 1) < 0)
-        fail("Failed to listen to gdb socket");
+        ERROR_LOG(GDB_THREAD, "Failed to listen to gdb socket");
 
-    sock = tmpsock;
+    INFO_LOG(GDB_THREAD, "Waiting for gdb to connect...\n");
 
-    DEBUG_LOG(GDB_STUB, "Waiting for gdb to connect...\n");
-    int result = 0;
-    while ((result = gdb_data_available()) == 0)
-    {
-        Common::YieldCPU();
-    }
-
-    if (result < 0)
-    {
-        gdb_deinit();
-        return;
-    }
-
-    sock = (int)accept(tmpsock, (struct sockaddr *)&saddr_client, &len);
-
+    sock = (int)accept(tmpsock, client_addr, client_addrlen);
     if (sock < 0)
-    {
-        wprintf(L"accept failed with error: %ld\n", WSAGetLastError());
-        fail("Failed to accept gdb client");
-    }
-    DEBUG_LOG(GDB_STUB, "Client connected.\n");
+        ERROR_LOG(GDB_THREAD, "Failed to accept gdb client");
+    INFO_LOG(GDB_THREAD, "Client connected.\n");
 
-    saddr_client.sin_addr.s_addr = ntohl(saddr_client.sin_addr.s_addr);
-    /*if (((saddr_client.sin_addr.s_addr >> 24) & 0xff) != 127 ||
-    ((saddr_client.sin_addr.s_addr >> 16) & 0xff) !=   0 ||
-    ((saddr_client.sin_addr.s_addr >>  8) & 0xff) !=   0 ||
-    ((saddr_client.sin_addr.s_addr >>  0) & 0xff) !=   1)
-    fail("gdb: incoming connection not from localhost");
-    */
     closesocket(tmpsock);
-
-    connected = true;
+    tmpsock = -1;
 }
 
 void gdb_stub::gdb_deinit()
 {
-    if (sock == -1)
-        return;
+    if (tmpsock != -1)
+    {
+        shutdown(tmpsock, SD_BOTH);
+        closesocket(tmpsock);
+        tmpsock = -1;
+    }
+    if (sock != -1)
+    {
+        shutdown(sock, SD_BOTH);
+        closesocket(sock);
+        sock = -1;
+    }
 
     connected = false;
 
-    shutdown(sock, SD_BOTH);
-
-    closesocket(sock);
-    sock = -1;
 #ifdef _WIN32
     WSACleanup();
 #endif
@@ -479,7 +508,7 @@ void gdb_stub::gdb_read_command(void)
     c = gdb_read_byte();
     if (c != GDB_STUB_START)
     {
-        DEBUG_LOG(GDB_STUB, "gdb: read invalid byte %02x\n", c);
+        DEBUG_LOG(GDB_THREAD, "gdb: read invalid byte %02x\n", c);
         return;
     }
 
@@ -497,13 +526,13 @@ void gdb_stub::gdb_read_command(void)
 
     if (chk_calc != chk_read)
     {
-        DEBUG_LOG(GDB_STUB, "gdb: invalid checksum: calculated %02x and read %02x for $%s# (length: %d)\n", chk_calc, chk_read, cmd_bfr, cmd_len);
+        DEBUG_LOG(GDB_THREAD, "gdb: invalid checksum: calculated %02x and read %02x for $%s# (length: %d)\n", chk_calc, chk_read, cmd_bfr, cmd_len);
         cmd_len = 0;
 
         gdb_nak();
     }
 
-    DEBUG_LOG(GDB_STUB, "gdb: read command %c with a length of %d: %s\n", cmd_bfr[0], cmd_len, cmd_bfr);
+    DEBUG_LOG(GDB_THREAD, "gdb: read command %c with a length of %d: %s\n", cmd_bfr[0], cmd_len, cmd_bfr);
 }
 
 void gdb_stub::gdb_parse_command(void)
@@ -621,7 +650,7 @@ void gdb_stub::gdb_reply(const char *reply)
     cmd_bfr[cmd_len + 2] = nibble2hex(chk >> 4);
     cmd_bfr[cmd_len + 3] = nibble2hex(chk);
 
-    //DEBUG_LOG(GDB_STUB, "gdb: reply (len: %d): %s\n", cmd_len, cmd_bfr);
+    //DEBUG_LOG(GDB_THREAD, "gdb: reply (len: %d): %s\n", cmd_len, cmd_bfr);
 
     ptr = cmd_bfr;
     left = cmd_len + 4;
@@ -874,7 +903,7 @@ void gdb_stub::gdb_kill(void)
     gdb_deinit();
 
     CPU::Stop();
-    DEBUG_LOG(GDB_STUB, "killed by gdb");
+    DEBUG_LOG(GDB_THREAD, "killed by gdb");
 }
 
 void gdb_stub::gdb_read_mem(void)
@@ -898,7 +927,7 @@ void gdb_stub::gdb_read_mem(void)
     len = 0;
     while (i < cmd_len)
         len = (len << 4) | hex2char(cmd_bfr[i++]);
-    DEBUG_LOG(GDB_STUB, "gdb: read memory: %08x bytes from %08x\n", len, addr);
+    DEBUG_LOG(GDB_THREAD, "gdb: read memory: %08x bytes from %08x\n", len, addr);
 
     if (len * 2 > sizeof reply)
         gdb_reply("E01");
@@ -927,7 +956,7 @@ void gdb_stub::gdb_write_mem(void)
     len = 0;
     while (cmd_bfr[i] != ':')
         len = (len << 4) | hex2char(cmd_bfr[i++]);
-    DEBUG_LOG(GDB_STUB, "gdb: write memory: %08x bytes to %08x\n", len, addr);
+    DEBUG_LOG(GDB_THREAD, "gdb: write memory: %08x bytes to %08x\n", len, addr);
 
     hex2mem(addr, cmd_bfr + i, len);
     gdb_reply("OK");
@@ -1060,7 +1089,7 @@ void gdb_stub::gdb_handle_query(void)
     if (!connected)
         return;
 
-    DEBUG_LOG(GDB_STUB, "gdb: query '%s'\n", cmd_bfr + 1);
+    DEBUG_LOG(GDB_THREAD, "gdb: query '%s'\n", cmd_bfr + 1);
     gdb_ack();
     gdb_reply("");
 }
@@ -1243,7 +1272,7 @@ void gdb_stub::gdb_bp_add(u32 type, u32 addr, u32 len)
         PowerPC::breakpoints.Add(addr & ~3);
     }
 
-    DEBUG_LOG(GDB_STUB, "gdb: added a %d breakpoint: %08x bytes at %08X\n", type, len, addr);
+    DEBUG_LOG(GDB_THREAD, "gdb: added a %d breakpoint: %08x bytes at %08X\n", type, len, addr);
 }
 
 void gdb_stub::gdb_bp_remove(u32 type, u32 addr, u32 len)
@@ -1275,5 +1304,5 @@ void gdb_stub::gdb_bp_remove(u32 type, u32 addr, u32 len)
         PowerPC::breakpoints.Remove(addr);
     }
 
-    DEBUG_LOG(GDB_STUB, "gdb: removed a %d breakpoint: %08x bytes at %08X\n", type, len, addr);
+    DEBUG_LOG(GDB_THREAD, "gdb: removed a %d breakpoint: %08x bytes at %08X\n", type, len, addr);
 }
