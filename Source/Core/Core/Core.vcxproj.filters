@@ -729,6 +729,9 @@
     <ClCompile Include="PowerPC\Jit64Common\Jit64AsmCommon.cpp">
       <Filter>PowerPC\Jit64Common</Filter>
     </ClCompile>
+    <ClCompile Include="PowerPC\TCPGecko.cpp">
+      <Filter>PowerPC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
@@ -1246,6 +1249,9 @@
     </ClInclude>
     <ClInclude Include="PowerPC\Jit64Common\Jit64AsmCommon.h">
       <Filter>PowerPC\Jit64Common</Filter>
+    </ClInclude>
+    <ClInclude Include="PowerPC\TCPGecko.h">
+      <Filter>PowerPC</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
