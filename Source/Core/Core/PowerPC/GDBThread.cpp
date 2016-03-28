@@ -195,7 +195,7 @@ void GDBThread::ExecuteTaskInThread()
 
             CPU::EnableStepping(true);
 
-            PowerPC::CPUState previous_state = PowerPC::GetState();
+            PowerPC::CPUState previous_state = PowerPC::CPU_POWERDOWN;
 
             while (is_running && (0 <= gdb_interface.gdb_data_available()))
             {
@@ -204,6 +204,8 @@ void GDBThread::ExecuteTaskInThread()
                 const PowerPC::CPUState current_state = PowerPC::GetState();
                 if (current_state != previous_state)
                 {
+                    DEBUG_LOG(GDB_THREAD, "Previous state: %d - Current state: %d", previous_state, current_state);
+
                     switch (current_state)
                     {
                     case PowerPC::CPU_RUNNING:
@@ -442,6 +444,10 @@ void gdb_stub::gdb_init_generic(int domain,
 
     closesocket(tmpsock);
     tmpsock = -1;
+
+    connected = (sock >= 0);
+    if (!connected)
+        gdb_deinit();
 }
 
 void gdb_stub::gdb_deinit()
@@ -833,7 +839,7 @@ void gdb_stub::gdb_write_registers(void)
         {
             riPS1(id - 32) = rbe64hex(bufptr);
             bufptr += 16;
-            riPS0(id - 32) = rbe64hex(bufptr + 16);
+            riPS0(id - 32) = rbe64hex(bufptr);
             bufptr += 16;
         }
         else
