@@ -10,11 +10,13 @@
 #include "Common/StringUtil.h"
 #include "Common/Thread.h"
 #include "Common/Logging/Log.h"
+#include "Core/BootManager.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/CPU.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
+#include "Core/PowerPC/JitInterface.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -77,7 +79,11 @@ enum gdb_bp_type
 // --------------------------------------------------------------------------------------
 //  GDBThread Implementations
 // --------------------------------------------------------------------------------------
-GDBThread::GDBThread() 
+GDBThread::GDBThread() :
+    previous_state(PowerPC::CPU_POWERDOWN),
+    sock(-1),
+    sig(0),
+    connected(false)
 {
 }
 
@@ -123,8 +129,8 @@ void GDBThread::OnStop()
 
     is_running = false;
 
-    gdb_interface.gdb_signal(SIGTERM);
-    gdb_interface.gdb_deinit();
+    gdb_signal(SIGTERM);
+    gdb_deinit();
 }
 
 void GDBThread::OnPause()
@@ -136,16 +142,16 @@ void GDBThread::OnPause()
 
     if (PowerPC::CPU_POWERDOWN == PowerPC::GetState())
     {
-        gdb_interface.gdb_signal(SIGTERM);
-        gdb_interface.gdb_deinit();
+        gdb_signal(SIGTERM);
+        gdb_deinit();
     }
     else if (PowerPC::breakpoints.GetBreakpointTriggered(addr, cond))
     {
-        gdb_interface.gdb_signal(SIGTRAP, addr, cond);
+        gdb_signal(SIGTRAP, addr, cond);
     }
     else
     {
-        gdb_interface.gdb_signal(SIGSTOP);
+        gdb_signal(SIGSTOP);
     }
 }
 void GDBThread::OnResume()
@@ -154,13 +160,38 @@ void GDBThread::OnResume()
 
     if (PowerPC::CPU_POWERDOWN == PowerPC::GetState())
     {
-        gdb_interface.gdb_signal(SIGTERM);
-        gdb_interface.gdb_deinit();
+        gdb_signal(SIGTERM);
+        gdb_deinit();
     }
     else
     {
-        gdb_interface.gdb_signal(SIGCONT);
+        gdb_signal(SIGCONT);
     }
+}
+
+void GDBThread::UpdateState(PowerPC::CPUState current_state)
+{
+    if (current_state != previous_state)
+    {
+        DEBUG_LOG(GDB_THREAD, "Previous state: %d - Current state: %d", previous_state, current_state);
+
+        switch (current_state)
+        {
+        case PowerPC::CPU_RUNNING:
+            OnResume();
+            break;
+        case PowerPC::CPU_STEPPING:
+            OnPause();
+            break;
+        case PowerPC::CPU_POWERDOWN:
+            OnStop();
+            break;
+        default:
+            break;
+        }
+    }
+
+    previous_state = current_state;
 }
 
 void GDBThread::ExecuteTaskInThread()
@@ -180,54 +211,33 @@ void GDBThread::ExecuteTaskInThread()
 #ifndef _WIN32
             if (!_CoreParameter.gdb_socket.empty())
             {
-                gdb_interface.gdb_init_local(_CoreParameter.gdb_socket.data());
+                gdb_init_local(_CoreParameter.gdb_socket.data());
             }
             else
 #endif
             if (_CoreParameter.iGDBPort > 0)
             {
-                gdb_interface.gdb_init((u32)_CoreParameter.iGDBPort);
+                gdb_init((u32)_CoreParameter.iGDBPort);
                 // break at next instruction (the first instruction)
             }
 
-            // abuse abort signal for attach
-            gdb_interface.gdb_signal(SIGABRT);
-
             CPU::EnableStepping(true);
 
-            PowerPC::CPUState previous_state = PowerPC::CPU_POWERDOWN;
+            // abuse abort signal for attach
+            gdb_signal(SIGABRT);
 
-            while (is_running && (0 <= gdb_interface.gdb_data_available()))
+            previous_state = PowerPC::CPU_POWERDOWN;
+
+            while (is_running && (0 <= gdb_data_available()))
             {
-                gdb_interface.gdb_handle_events();
+                gdb_handle_events();
 
-                const PowerPC::CPUState current_state = PowerPC::GetState();
-                if (current_state != previous_state)
-                {
-                    DEBUG_LOG(GDB_THREAD, "Previous state: %d - Current state: %d", previous_state, current_state);
-
-                    switch (current_state)
-                    {
-                    case PowerPC::CPU_RUNNING:
-                        OnResume();
-                        break;
-                    case PowerPC::CPU_STEPPING:
-                        OnPause();
-                        break;
-                    case PowerPC::CPU_POWERDOWN:
-                        OnStop();
-                        break;
-                    default:
-                        break;
-                    }
-                }
-
-                previous_state = current_state;
+                UpdateState(PowerPC::GetState());
 
                 Common::YieldCPU();
             }
 
-            gdb_interface.gdb_deinit();
+            gdb_deinit();
         }
 
         Common::YieldCPU();
@@ -362,19 +372,8 @@ static u32 rle64hex(u8 *p)
 }
 
 // GDB stub interface
-gdb_stub::gdb_stub() :
-sock(-1),
-sig(0),
-connected(false)
-{
-}
-gdb_stub::~gdb_stub()
-{
-    gdb_deinit();
-}
-
 #ifndef _WIN32
-void gdb_stub::gdb_init_local(const char *socket)
+void GDBThread::gdb_init_local(const char *socket)
 {
     unlink(socket);
 
@@ -387,8 +386,10 @@ void gdb_stub::gdb_init_local(const char *socket)
 }
 #endif
 
-void gdb_stub::gdb_init(u32 port)
+void GDBThread::gdb_init(u32 port)
 {
+    gdb_deinit();
+
     sockaddr_in saddr_server = {};
     sockaddr_in saddr_client;
 
@@ -411,7 +412,7 @@ void gdb_stub::gdb_init(u32 port)
     */
 }
 
-void gdb_stub::gdb_init_generic(int domain,
+void GDBThread::gdb_init_generic(int domain,
     const sockaddr *server_addr, socklen_t server_addrlen,
     sockaddr *client_addr, socklen_t *client_addrlen)
 {
@@ -450,7 +451,7 @@ void gdb_stub::gdb_init_generic(int domain,
         gdb_deinit();
 }
 
-void gdb_stub::gdb_deinit()
+void GDBThread::gdb_deinit()
 {
     if (tmpsock != -1)
     {
@@ -472,7 +473,12 @@ void gdb_stub::gdb_deinit()
 #endif
 }
 
-int gdb_stub::gdb_data_available()
+bool GDBThread::gdb_active()
+{
+    return connected;
+}
+
+int GDBThread::gdb_data_available()
 {
     struct timeval t;
     fd_set _fds, *fds = &_fds;
@@ -491,7 +497,7 @@ int gdb_stub::gdb_data_available()
     return 0;
 }
 
-void gdb_stub::gdb_handle_events()
+void GDBThread::gdb_handle_events()
 {
     if (!connected)
         return;
@@ -503,7 +509,7 @@ void gdb_stub::gdb_handle_events()
     }
 }
 
-void gdb_stub::gdb_read_command(void)
+void GDBThread::gdb_read_command(void)
 {
     u8 c;
     u8 chk_read, chk_calc;
@@ -541,7 +547,7 @@ void gdb_stub::gdb_read_command(void)
     DEBUG_LOG(GDB_THREAD, "gdb: read command %c with a length of %d: %s\n", cmd_bfr[0], cmd_len, cmd_bfr);
 }
 
-void gdb_stub::gdb_parse_command(void)
+void GDBThread::gdb_parse_command(void)
 {
     if (cmd_len == 0)
         return;
@@ -603,7 +609,7 @@ void gdb_stub::gdb_parse_command(void)
     }
 }
 
-u8 gdb_stub::gdb_read_byte(void)
+u8 GDBThread::gdb_read_byte(void)
 {
     if (!connected)
         return 0;
@@ -618,7 +624,7 @@ u8 gdb_stub::gdb_read_byte(void)
     return c;
 }
 
-u8 gdb_stub::gdb_calc_chksum(void)
+u8 GDBThread::gdb_calc_chksum(void)
 {
     u32 len = cmd_len;
     u8 *ptr = cmd_bfr;
@@ -630,7 +636,7 @@ u8 gdb_stub::gdb_calc_chksum(void)
     return c;
 }
 
-void gdb_stub::gdb_reply(const char *reply)
+void GDBThread::gdb_reply(const char *reply)
 {
     if (!connected)
         return;
@@ -644,7 +650,7 @@ void gdb_stub::gdb_reply(const char *reply)
 
     cmd_len = (u32)strlen(reply);
     if (cmd_len + 4 > sizeof cmd_bfr)
-        fail("cmd_bfr overflow in gdb_reply");
+        fail("gdb_reply: cmd_bfr overflow");
 
     memcpy(cmd_bfr + 1, reply, cmd_len);
 
@@ -670,7 +676,7 @@ void gdb_stub::gdb_reply(const char *reply)
     }
 }
 
-void gdb_stub::gdb_nak(void)
+void GDBThread::gdb_nak(void)
 {
     if (!connected)
         return;
@@ -683,7 +689,7 @@ void gdb_stub::gdb_nak(void)
         fail("send failed");
 }
 
-void gdb_stub::gdb_ack(void)
+void GDBThread::gdb_ack(void)
 {
     if (!connected)
         return;
@@ -696,7 +702,7 @@ void gdb_stub::gdb_ack(void)
         fail("send failed");
 }
 
-void gdb_stub::gdb_handle_signal(void)
+void GDBThread::gdb_handle_signal(void)
 {
     if (!connected)
         return;
@@ -728,7 +734,7 @@ void gdb_stub::gdb_handle_signal(void)
     gdb_reply(bfr);
 }
 
-void gdb_stub::gdb_continue(void)
+void GDBThread::gdb_continue(void)
 {
     if (!connected)
         return;
@@ -738,10 +744,12 @@ void gdb_stub::gdb_continue(void)
     if (PowerPC::CPU_STEPPING == PowerPC::GetState())
     {
         CPU::EnableStepping(false);
+
+        UpdateState(PowerPC::GetState());
     }
 }
 
-void gdb_stub::gdb_detach(void)
+void GDBThread::gdb_detach(void)
 {
     if (!connected)
         return;
@@ -751,7 +759,7 @@ void gdb_stub::gdb_detach(void)
     gdb_deinit();
 }
 
-void gdb_stub::gdb_read_registers(void)
+void GDBThread::gdb_read_registers(void)
 {
     if (!connected)
         return;
@@ -819,7 +827,7 @@ void gdb_stub::gdb_read_registers(void)
     gdb_reply((char *)bfr);
 }
 
-void gdb_stub::gdb_write_registers(void)
+void GDBThread::gdb_write_registers(void)
 {
     if (!connected)
         return;
@@ -885,7 +893,7 @@ void gdb_stub::gdb_write_registers(void)
     gdb_reply("OK");
 }
 
-void gdb_stub::gdb_handle_set_thread(void)
+void GDBThread::gdb_handle_set_thread(void)
 {
     if (!connected)
         return;
@@ -899,7 +907,7 @@ void gdb_stub::gdb_handle_set_thread(void)
     gdb_reply("E01");
 }
 
-void gdb_stub::gdb_kill(void)
+void GDBThread::gdb_kill(void)
 {
     if (!connected)
         return;
@@ -908,11 +916,11 @@ void gdb_stub::gdb_kill(void)
 
     gdb_deinit();
 
-    CPU::Stop();
+    BootManager::Stop();
     DEBUG_LOG(GDB_THREAD, "killed by gdb");
 }
 
-void gdb_stub::gdb_read_mem(void)
+void GDBThread::gdb_read_mem(void)
 {
     if (!connected)
         return;
@@ -942,7 +950,7 @@ void gdb_stub::gdb_read_mem(void)
     gdb_reply((char *)reply);
 }
 
-void gdb_stub::gdb_write_mem(void)
+void GDBThread::gdb_write_mem(void)
 {
     if (!connected)
         return;
@@ -968,7 +976,7 @@ void gdb_stub::gdb_write_mem(void)
     gdb_reply("OK");
 }
 
-void gdb_stub::gdb_read_register(void)
+void GDBThread::gdb_read_register(void)
 {
     if (!connected)
         return;
@@ -1028,7 +1036,7 @@ void gdb_stub::gdb_read_register(void)
     gdb_reply((char *)reply);
 }
 
-void gdb_stub::gdb_write_register(void)
+void GDBThread::gdb_write_register(void)
 {
     if (!connected)
         return;
@@ -1090,7 +1098,7 @@ void gdb_stub::gdb_write_register(void)
     gdb_reply("OK");
 }
 
-void gdb_stub::gdb_handle_query(void)
+void GDBThread::gdb_handle_query(void)
 {
     if (!connected)
         return;
@@ -1100,7 +1108,7 @@ void gdb_stub::gdb_handle_query(void)
     gdb_reply("");
 }
 
-void gdb_stub::gdb_step(void)
+void GDBThread::gdb_step(void)
 {
     if (!connected)
         return;
@@ -1110,10 +1118,20 @@ void gdb_stub::gdb_step(void)
     if (PowerPC::CPU_STEPPING != PowerPC::GetState())
         return;
 
-    PowerPC::SingleStep();
+    PowerPC::breakpoints.ClearAllTemporary();
+    JitInterface::InvalidateICache(PC, 4, true);
+
+    Common::Event sync_event;
+
+    sync_event.Reset();
+    CPU::StepOpcode(&sync_event);
+
+    sync_event.Wait();
+
+    gdb_signal(SIGTRAP);
 }
 
-void gdb_stub::gdb_add_bp(void)
+void GDBThread::gdb_add_bp(void)
 {
     if (!connected)
         return;
@@ -1159,7 +1177,7 @@ void gdb_stub::gdb_add_bp(void)
     gdb_reply("OK");
 }
 
-void gdb_stub::gdb_remove_bp(void)
+void GDBThread::gdb_remove_bp(void)
 {
     if (!connected)
         return;
@@ -1205,7 +1223,7 @@ void gdb_stub::gdb_remove_bp(void)
     gdb_reply("OK");
 }
 
-void gdb_stub::gdb_pause(void)
+void GDBThread::gdb_pause(void)
 {
     if (!connected)
         return;
@@ -1215,10 +1233,12 @@ void gdb_stub::gdb_pause(void)
     if (PowerPC::CPU_STEPPING != PowerPC::GetState())
     {
         CPU::EnableStepping(true);
+
+        UpdateState(PowerPC::GetState());
     }
 }
 
-void gdb_stub::gdb_signal(u32 s, u64 addr, MemCheckCondition cond)
+void GDBThread::gdb_signal(u32 s, u64 addr, MemCheckCondition cond)
 {
     sig = s;
     signal_addr = addr;
@@ -1227,9 +1247,8 @@ void gdb_stub::gdb_signal(u32 s, u64 addr, MemCheckCondition cond)
     gdb_handle_signal();
 }
 
-void gdb_stub::gdb_bp_add(u32 type, u32 addr, u32 len)
+void GDBThread::gdb_bp_add(u32 type, u32 addr, u32 len)
 {
-    MemCheckCondition condition;
     bool is_mem_check = false;
 
     TMemCheck MemCheck;
@@ -1252,19 +1271,20 @@ void gdb_stub::gdb_bp_add(u32 type, u32 addr, u32 len)
     case GDB_BP_TYPE_W:
     {
         is_mem_check = true;
-        condition = MEMCHECK_WRITE;
+        MemCheck.OnWrite = true;
     }
     break;
     case GDB_BP_TYPE_R:
     {
         is_mem_check = true;
-        condition = MEMCHECK_READ;
+        MemCheck.OnRead = true;
     }
     break;
     case GDB_BP_TYPE_A:
     {
         is_mem_check = true;
-        condition = MEMCHECK_READWRITE;
+        MemCheck.OnRead = true;
+        MemCheck.OnWrite = true;
     }
     break;
     }
@@ -1281,7 +1301,7 @@ void gdb_stub::gdb_bp_add(u32 type, u32 addr, u32 len)
     DEBUG_LOG(GDB_THREAD, "gdb: added a %d breakpoint: %08x bytes at %08X\n", type, len, addr);
 }
 
-void gdb_stub::gdb_bp_remove(u32 type, u32 addr, u32 len)
+void GDBThread::gdb_bp_remove(u32 type, u32 addr, u32 len)
 {
     bool is_mem_check = false;
 

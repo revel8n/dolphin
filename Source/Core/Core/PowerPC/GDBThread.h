@@ -10,6 +10,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/Thread.h"
+#include "Common/Event.h"
 
 #include "Core/HW/CPU.h"
 #include "Core/HW/Memmap.h"
@@ -28,17 +29,44 @@
 
 #define		GDB_BFR_MAX	10000
 
-class gdb_stub
+// --------------------------------------------------------------------------------------
+//  GDBThread
+// --------------------------------------------------------------------------------------
+// Threaded wrapper class for implementing debugging functionality through a gdb stub.
+//
+class GDBThread
 {
 public:
-    gdb_stub();
-    ~gdb_stub();
+    GDBThread();
+    ~GDBThread();
 
+    bool Initialize();
+    void Terminate();
+
+protected:
+    void OnStart();
+    void OnStop();
+    void OnPause();
+    void OnResume();
+    void UpdateState(PowerPC::CPUState current_state);
+
+    void ExecuteTaskInThread();
+
+protected:
+    bool is_running;
+
+    std::thread server_thread;
+
+    PowerPC::CPUState previous_state;
+
+protected:
     void gdb_init(u32 port);
 #ifndef _WIN32
     void gdb_init_local(const char *socket);
 #endif
     void gdb_deinit();
+
+    bool gdb_active();
 
     int gdb_data_available();
 
@@ -104,34 +132,4 @@ protected:
 
     void gdb_bp_add(u32 type, u32 addr, u32 len);
     void gdb_bp_remove(u32 type, u32 addr, u32 len);
-};
-
-// --------------------------------------------------------------------------------------
-//  GDBThread
-// --------------------------------------------------------------------------------------
-// Threaded wrapper class for implementing debugging functionality through a gdb stub.
-//
-class GDBThread
-{
-public:
-    GDBThread();
-    ~GDBThread();
-
-    bool Initialize();
-    void Terminate();
-
-protected:
-    void OnStart();
-    void OnStop();
-    void OnPause();
-    void OnResume();
-
-    void ExecuteTaskInThread();
-
-protected:
-    bool is_running;
-
-    gdb_stub gdb_interface;
-
-    std::thread server_thread;
 };
