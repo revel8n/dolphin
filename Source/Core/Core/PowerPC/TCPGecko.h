@@ -104,12 +104,12 @@ private:
     static const u8 cmd_version = 0x99;
 
     static const u8 GCBPHit = 0x11;
-    static const u8 GCACK = 0xAA;
+    static const u8 GCACK;
     static const u8 GCRETRY = 0xBB;
     static const u8 GCFAIL = 0xCC;
     static const u8 GCDONE = 0xFF;
 
-    static const u8 GCNewVer = 0x80;
+    static const u8 GCNewVer;
 
     static const u8 BPExecute = 0x03;
     static const u8 BPRead = 0x05;

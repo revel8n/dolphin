@@ -30,7 +30,9 @@
 #else
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <netinet/in.h>
+#define SD_BOTH SHUT_RDWR
 #endif
 #include <stdarg.h>
 
@@ -443,7 +445,11 @@ void GDBThread::gdb_init_generic(int domain,
         ERROR_LOG(GDB_THREAD, "Failed to accept gdb client");
     INFO_LOG(GDB_THREAD, "Client connected.\n");
 
+#ifdef _WIN32
     closesocket(tmpsock);
+#else
+    close(tmpsock);
+#endif
     tmpsock = -1;
 
     connected = (sock >= 0);
@@ -456,13 +462,21 @@ void GDBThread::gdb_deinit()
     if (tmpsock != -1)
     {
         shutdown(tmpsock, SD_BOTH);
+#if _WIN32
         closesocket(tmpsock);
+#else
+        close(tmpsock);
+#endif
         tmpsock = -1;
     }
     if (sock != -1)
     {
         shutdown(sock, SD_BOTH);
+#if _WIN32
         closesocket(sock);
+#else
+        close(sock);
+#endif
         sock = -1;
     }
 

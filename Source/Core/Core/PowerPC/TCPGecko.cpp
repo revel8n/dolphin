@@ -22,6 +22,8 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/PowerPC/Interpreter/Interpreter_FPUtils.h"
 
+const u8 TCPGecko::GCACK = 0xAA;
+const u8 TCPGecko::GCNewVer = 0x80;
 TCPGecko::TCPGecko()
     : client_running(false)
 {
@@ -250,7 +252,7 @@ bool TCPGecko::read_data(u8* data, u64 size)
             std::lock_guard<std::mutex> lk(transfer_lock);
             if (recv_fifo.size() >= size)
             {
-                memcpy_s(data, size, &recv_fifo.front(), size);
+                memcpy(data, reinterpret_cast<const void*>(&recv_fifo.front()), size);
 
                 recv_fifo.erase(recv_fifo.begin(), recv_fifo.begin() + size);
 
