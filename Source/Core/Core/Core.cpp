@@ -348,8 +348,11 @@ static void CpuThread()
 	GDBThread gdb_thread;
 	TCPGecko tcp_gecko;
 
-	gdb_thread.Initialize();
-	tcp_gecko.Initialize();
+	if (_CoreParameter.bEnableDebugging)
+	{
+		gdb_thread.Initialize();
+		tcp_gecko.Initialize();
+	}
 
 	#ifdef USE_GDBSTUB
 	#ifndef _WIN32
@@ -377,8 +380,11 @@ static void CpuThread()
 
 	s_is_started = false;
 
-	tcp_gecko.Terminate();
-	gdb_thread.Terminate();
+	if (_CoreParameter.bEnableDebugging)
+	{
+		tcp_gecko.Terminate();
+		gdb_thread.Terminate();
+	}
 
 	if (!_CoreParameter.bCPUThread)
 		g_video_backend->Video_Cleanup();

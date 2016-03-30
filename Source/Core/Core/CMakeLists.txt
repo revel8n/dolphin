@@ -180,6 +180,8 @@ set(SRCS	ActionReplay.cpp
 			PowerPC/JitILCommon/JitILBase_Paired.cpp
 			PowerPC/JitILCommon/JitILBase_FloatingPoint.cpp
 			PowerPC/JitILCommon/JitILBase_Integer.cpp
+			PowerPC/GDBThread.cpp
+			PowerPC/TCPGecko.cpp
 			)
 
 if(_M_X86)
