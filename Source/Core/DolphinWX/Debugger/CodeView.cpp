@@ -108,17 +108,8 @@ void CCodeView::OnMouseDown(wxMouseEvent& event)
 
 void CCodeView::OnScrollWheel(wxMouseEvent& event)
 {
-  const bool scroll_down = (event.GetWheelRotation() < 0);
-  const int num_lines = event.GetLinesPerAction();
-
-  if (scroll_down)
-  {
-    m_curAddress += num_lines * 4;
-  }
-  else
-  {
-    m_curAddress -= num_lines * 4;
-  }
+  const int scrollCount = event.GetLinesPerAction() * event.GetWheelRotation() / event.GetWheelDelta();
+  m_curAddress -= m_align * scrollCount;
 
   Refresh();
   event.Skip();

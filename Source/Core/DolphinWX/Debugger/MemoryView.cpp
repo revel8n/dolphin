@@ -230,17 +230,8 @@ void CMemoryView::OnMouseUpL(wxMouseEvent& event)
 
 void CMemoryView::OnScrollWheel(wxMouseEvent& event)
 {
-  const bool scroll_down = (event.GetWheelRotation() < 0);
-  const int num_lines = event.GetLinesPerAction();
-
-  if (scroll_down)
-  {
-    curAddress += num_lines * align;
-  }
-  else
-  {
-    curAddress -= num_lines * align;
-  }
+  const int scrollCount = event.GetLinesPerAction() * event.GetWheelRotation() / event.GetWheelDelta();
+  curAddress -= align * scrollCount;
 
   Refresh();
   event.Skip();
