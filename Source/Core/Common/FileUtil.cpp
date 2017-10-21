@@ -187,6 +187,13 @@ bool CreateFullPath(const std::string& fullPath)
   }
 
   size_t position = 0;
+
+  // handle simple network paths
+  while (position < fullPath.length() && fullPath[position] == DIR_SEP_CHR)
+  {
+      ++position;
+  }
+
   while (true)
   {
     // Find next sub path
