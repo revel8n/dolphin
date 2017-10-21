@@ -44,6 +44,14 @@ struct TWatch
   bool is_enabled = false;
 };
 
+enum MemCheckCondition
+{
+    MEMCHECK_NONE = 0x00,
+    MEMCHECK_READ = 0x01,
+    MEMCHECK_WRITE = 0x02,
+    MEMCHECK_READWRITE = 0x03,
+};
+
 // Code breakpoints.
 class BreakPoints
 {
@@ -68,8 +76,26 @@ public:
   void Clear();
   void ClearAllTemporary();
 
+  void SetBreakpointTriggered(bool b, u64 addr = -1, MemCheckCondition cond = MEMCHECK_NONE)
+  {
+      breakpointTriggered_ = b;
+      breakpointAddress_ = addr;
+      breakpointCondition_ = cond;
+  };
+  bool GetBreakpointTriggered() { return breakpointTriggered_; };
+  bool GetBreakpointTriggered(u64& addr, MemCheckCondition& cond)
+  {
+      addr = breakpointAddress_;
+      cond = breakpointCondition_;
+      return breakpointTriggered_;
+  };
+
 private:
   TBreakPoints m_breakpoints;
+
+  bool breakpointTriggered_;
+  u64 breakpointAddress_;
+  MemCheckCondition breakpointCondition_;
 };
 
 // Memory breakpoints

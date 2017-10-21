@@ -432,6 +432,7 @@ static void Memcheck(u32 address, u32 var, bool write, int size)
       bool pause = mc->Action(&PowerPC::debug_interface, var, address, write, size, PC);
       if (pause)
       {
+        PowerPC::breakpoints.SetBreakpointTriggered(true, address, MemCheckCondition((mc->is_break_on_write << 1) | (mc->is_break_on_read << 0)));
         CPU::Break();
         // Fake a DSI so that all the code that tests for it in order to skip
         // the rest of the instruction will apply.  (This means that
@@ -551,6 +552,33 @@ void Write_F64(const double var, const u32 address)
   Write_U64(integral, address);
 }
 
+std::string Read(u32 address, size_t size)
+{
+  std::string s;
+  do
+  {
+    u8 res = Read_U8(address);
+    s += res;
+    ++address;
+  } while (size > 0 && s.length() < size);
+  return s;
+}
+
+void Write(u32 address, u8* data, size_t size)
+{
+  while (size > 0)
+  {
+    --size;
+
+    if (!HostIsRAMAddress(address))
+      break;
+
+    Write_U8(*data, address);
+    ++data;
+    ++address;
+  }
+}
+
 u8 HostRead_U8(const u32 address)
 {
   u8 var = ReadFromHardware<FLAG_NO_EXCEPTION, u8>(address);
@@ -608,6 +636,35 @@ std::string HostGetString(u32 address, size_t size)
     ++address;
   } while (size == 0 || s.length() < size);
   return s;
+}
+
+std::string HostRead(u32 address, size_t size)
+{
+  std::string s;
+  do
+  {
+    if (!HostIsRAMAddress(address))
+      break;
+    u8 res = HostRead_U8(address);
+    s += res;
+    ++address;
+  } while (size > 0 && s.length() < size);
+  return s;
+}
+
+void HostWrite(u32 address, u8* data, size_t size)
+{
+  while (size > 0)
+  {
+    --size;
+
+    if (!HostIsRAMAddress(address))
+      break;
+
+    HostWrite_U8(*data, address);
+    ++data;
+    ++address;
+  }
 }
 
 bool IsOptimizableRAMAddress(const u32 address)

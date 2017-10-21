@@ -203,6 +203,11 @@ void UpdatePerformanceMonitor(u32 cycles, u32 num_load_stores, u32 num_fp_inst);
 #define riPS0(i) (*(u64*)(&PowerPC::ppcState.ps[i][0]))
 #define riPS1(i) (*(u64*)(&PowerPC::ppcState.ps[i][1]))
 
+#define CR     PowerPC::ppcState.cr
+#define XER    PowerPC::ppcState.spr[SPR_XER]
+#define DSISR  PowerPC::ppcState.spr[SPR_DSISR]
+#define DAR    PowerPC::ppcState.spr[SPR_DAR]
+
 // Routines for debugger UI, cheats, etc. to access emulated memory from the
 // perspective of the CPU.  Not for use by core emulation routines.
 // Use "Host_" prefix.
@@ -224,6 +229,8 @@ bool HostIsRAMAddress(u32 address);
 bool HostIsInstructionRAMAddress(u32 address);
 
 std::string HostGetString(u32 em_address, size_t size = 0);
+std::string HostRead(u32 em_address, size_t size = 0);
+void HostWrite(u32 em_address, u8* data, size_t size);
 
 // Routines for the CPU core to access memory.
 
@@ -262,6 +269,9 @@ void Write_U64_Swap(u64 var, u32 address);
 
 // Useful helper functions, used by ARM JIT
 void Write_F64(double var, u32 address);
+
+std::string Read(u32 em_address, size_t size = 0);
+void Write(u32 em_address, u8* data, size_t size);
 
 void DMA_LCToMemory(u32 memAddr, u32 cacheAddr, u32 numBlocks);
 void DMA_MemoryToLC(u32 cacheAddr, u32 memAddr, u32 numBlocks);
