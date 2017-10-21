@@ -63,6 +63,8 @@
 #ifdef USE_GDBSTUB
 #include "Core/PowerPC/GDBStub.h"
 #endif
+#include "Core/PowerPC/GDBThread.h"
+#include "Core/PowerPC/TCPGecko.h"
 
 #include "DiscIO/FileMonitor.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
@@ -385,10 +387,25 @@ static void CpuThread()
   MemoryWatcher::Init();
 #endif
 
+  GDBThread gdb_thread;
+  TCPGecko tcp_gecko;
+
+  if (_CoreParameter.bEnableDebugging)
+  {
+      gdb_thread.Initialize();
+      tcp_gecko.Initialize();
+  }
+
   // Enter CPU run loop. When we leave it - we are done.
   CPU::Run();
 
   s_is_started = false;
+
+  if (_CoreParameter.bEnableDebugging)
+  {
+      tcp_gecko.Terminate();
+      gdb_thread.Terminate();
+  }
 
   if (!_CoreParameter.bCPUThread)
     g_video_backend->Video_Cleanup();

@@ -864,6 +864,12 @@
     <ClCompile Include="IOS\USB\Bluetooth\WiimoteHIDAttr.cpp">
       <Filter>IOS\USB\Bluetooth</Filter>
     </ClCompile>
+    <ClCompile Include="PowerPC\GDBThread.cpp">
+      <Filter>PowerPC</Filter>
+    </ClCompile>
+    <ClCompile Include="PowerPC\TCPGecko.cpp">
+      <Filter>PowerPC</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BootManager.h" />
@@ -1480,6 +1486,12 @@
     </ClInclude>
     <ClInclude Include="IOS\MIOS.h">
       <Filter>IOS</Filter>
+    </ClInclude>
+    <ClInclude Include="PowerPC\GDBThread.h">
+      <Filter>PowerPC</Filter>
+    </ClInclude>
+    <ClInclude Include="PowerPC\TCPGecko.h">
+      <Filter>PowerPC</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

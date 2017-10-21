@@ -60,6 +60,7 @@ LogManager::LogManager()
   m_Log[LogTypes::EXPANSIONINTERFACE] = new LogContainer("EXI", "Expansion Interface");
   m_Log[LogTypes::FILEMON] = new LogContainer("FileMon", "File Monitor");
   m_Log[LogTypes::GDB_STUB] = new LogContainer("GDB_STUB", "GDB Stub");
+  m_Log[LogTypes::GDB_THREAD] = new LogContainer("GDB_THREAD", "GDB Thread");
   m_Log[LogTypes::GPFIFO] = new LogContainer("GP", "GPFifo");
   m_Log[LogTypes::HOST_GPU] = new LogContainer("Host GPU", "Host GPU");
   m_Log[LogTypes::IOS] = new LogContainer("IOS", "IOS");
@@ -85,6 +86,7 @@ LogManager::LogManager()
   m_Log[LogTypes::POWERPC] = new LogContainer("PowerPC", "IBM CPU");
   m_Log[LogTypes::SERIALINTERFACE] = new LogContainer("SI", "Serial Interface (SI)");
   m_Log[LogTypes::SP1] = new LogContainer("SP1", "Serial Port 1");
+  m_Log[LogTypes::TCPGECKO] = new LogContainer("TCPGecko", "TCPGecko Interface");
   m_Log[LogTypes::VIDEO] = new LogContainer("Video", "Video Backend");
   m_Log[LogTypes::VIDEOINTERFACE] = new LogContainer("VI", "Video Interface (VI)");
   m_Log[LogTypes::WIIMOTE] = new LogContainer("Wiimote", "Wiimote");

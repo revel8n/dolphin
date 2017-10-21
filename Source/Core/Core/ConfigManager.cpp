@@ -137,12 +137,11 @@ void SConfig::SaveGeneralSettings(IniFile& ini)
   general->Set("WirelessMac", m_WirelessMac);
   general->Set("WiiSDCardPath", m_strWiiSDCardPath);
 
-#ifdef USE_GDBSTUB
 #ifndef _WIN32
   general->Set("GDBSocket", gdb_socket);
 #endif
   general->Set("GDBPort", iGDBPort);
-#endif
+  general->Set("TCPGeckoPort", iTCPGeckoPort);
 }
 
 void SConfig::SaveInterfaceSettings(IniFile& ini)
@@ -431,12 +430,11 @@ void SConfig::LoadGeneralSettings(IniFile& ini)
   general->Get("LastFilename", &m_LastFilename);
   general->Get("ShowLag", &m_ShowLag, false);
   general->Get("ShowFrameCount", &m_ShowFrameCount, false);
-#ifdef USE_GDBSTUB
 #ifndef _WIN32
   general->Get("GDBSocket", &gdb_socket, "");
 #endif
   general->Get("GDBPort", &(iGDBPort), -1);
-#endif
+  general->Get("TCPGeckoPort", &(iTCPGeckoPort), -1);
 
   m_ISOFolder.clear();
   int numISOPaths;
@@ -801,12 +799,11 @@ void SConfig::LoadDefaults()
   bAutomaticStart = false;
   bBootToPause = false;
 
-#ifdef USE_GDBSTUB
   iGDBPort = -1;
 #ifndef _WIN32
   gdb_socket = "";
 #endif
-#endif
+  iTCPGeckoPort = -1;
 
   iCPUCore = PowerPC::CORE_JIT64;
   iTimingVariance = 40;
