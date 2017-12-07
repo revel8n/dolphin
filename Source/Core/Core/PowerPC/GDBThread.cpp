@@ -228,7 +228,7 @@ void GDBThread::ExecuteTaskInThread()
             // abuse abort signal for attach
             gdb_signal(SIGABRT);
 
-            previous_state = CPU::CPU_POWERDOWN;
+            previous_state = CPU::CPU_STEPPING;
 
             while (is_running && (0 <= gdb_data_available()))
             {
@@ -1268,7 +1268,7 @@ void GDBThread::gdb_bp_add(u32 type, u32 addr, u32 len)
     TMemCheck MemCheck;
 
     MemCheck.start_address = addr;
-    MemCheck.end_address = addr + len;
+    MemCheck.end_address = addr + ((0 < len) ? len - 1 : 0);
     MemCheck.is_ranged = 1 < len;
     MemCheck.is_break_on_read = false;
     MemCheck.is_break_on_write = false;
